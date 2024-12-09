@@ -1,34 +1,28 @@
 local player = game.Players.LocalPlayer
 local mouse = player:GetMouse()
 local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
 local flying = false
-local flightSpeed = 50 -- Adjust this value to change flight speed
+local flightSpeed = 50 -- Adjust this to change flight speed
+local bodyVelocity
 
 -- Function to create the fly button
 local function createFlyButton()
     local screenGui = Instance.new("ScreenGui", player.PlayerGui)
-    local flyButton = Instance.new("Frame")
+    local flyButton = Instance.new("TextButton")
     
-    flyButton.Size = UDim2.new(0, 50, 0, 50)
+    flyButton.Size = UDim2.new(0, 70, 0, 30) -- Smaller size
     flyButton.Position = UDim2.new(0, 100, 0, 100)
     flyButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    flyButton.BorderSizePixel = 0
-    flyButton.AnchorPoint = Vector2.new(0.5, 0.5)
+    flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    flyButton.TextSize = 18
+    flyButton.Font = Enum.Font.SourceSansBold
+    flyButton.Text = "Fly"  -- Initial text
     flyButton.Parent = screenGui
-
-    local corner = Instance.new("UIScale")
-    corner.Parent = flyButton
 
     -- Draggable functionality
     local dragging
     local dragInput
-    local startPos = flyButton.Position
-
-    local function updateInput(input)
-        local delta = input.Position - dragInput.Position
-        flyButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
+    local startPos
 
     flyButton.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch then
@@ -46,7 +40,8 @@ local function createFlyButton()
 
     game:GetService("UserInputService").TouchMoved:Connect(function(input)
         if dragging then
-            updateInput(input)
+            local delta = input.Position - dragInput.Position
+            flyButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 
@@ -56,13 +51,14 @@ end
 -- Function to enable flying
 local function startFlying()
     flying = true
-    local bodyVelocity = Instance.new("BodyVelocity")
+
+    bodyVelocity = Instance.new("BodyVelocity")
     bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
     bodyVelocity.Parent = character.HumanoidRootPart
 
     while flying do
-        bodyVelocity.Velocity = Vector3.new(mouse.Hit.LookVector.X * flightSpeed, 50, mouse.Hit.LookVector.Z * flightSpeed)
+        local direction = mouse.Hit.LookVector * flightSpeed
+        bodyVelocity.Velocity = Vector3.new(direction.X, 50, direction.Z) -- Allow upward movement
         wait()
     end
 
@@ -75,11 +71,13 @@ local function stopFlying()
 end
 
 -- Toggle flying when the button is tapped
-local function toggleFly()
+local function toggleFly(flyButton)
     if flying then
         stopFlying()
+        flyButton.Text = "Fly"  -- Change text to Fly
     else
         startFlying()
+        flyButton.Text = "Unfly"  -- Change text to Unfly
     end
 end
 
@@ -87,4 +85,4 @@ end
 local flyButton = createFlyButton()
 
 -- Connect button click to toggle flying
-flyButton.MouseButton1Click:Connect(toggleFly)
+flyButton.MouseButton1Click:Connect(function() toggleFly(flyButton) end)
