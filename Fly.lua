@@ -8,14 +8,21 @@ local bodyGyro, bodyVelocity
 -- Create UI
 local screenGui = Instance.new("ScreenGui", player.PlayerGui)
 local button = Instance.new("TextButton", screenGui)
+local dragHandle = Instance.new("Frame", button)
 
-button.Size = UDim2.new(0, 100, 0, 50) -- Adjust size for easier tapping
+-- Button properties
+button.Size = UDim2.new(0, 100, 0, 50) -- Button size
 button.Position = UDim2.new(0.5, -50, 0.5, -25)
 button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
 button.TextSize = 18
 button.Font = Enum.Font.SourceSansBold
 button.Text = "Fly"  -- Initial text
+
+-- Drag handle properties
+dragHandle.Size = UDim2.new(1, 0, 0, 10) -- Thin bar at the top
+dragHandle.Position = UDim2.new(0, 0, 0, 0)
+dragHandle.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 
 -- Function to create flying mechanism
 local function startFlying()
@@ -30,9 +37,9 @@ local function startFlying()
     bodyVelocity.Velocity = Vector3.new(0, 0, 0)
 
     while flying do
-        local direction = mouse.Hit.LookVector
-        bodyVelocity.Velocity = Vector3.new(direction.X * flightSpeed, direction.Y * flightSpeed, direction.Z * flightSpeed)
-        bodyGyro.CFrame = CFrame.new(character.HumanoidRootPart.Position, character.HumanoidRootPart.Position + direction)
+        -- Only change direction based on the character's look direction
+        bodyVelocity.Velocity = character.HumanoidRootPart.CFrame.LookVector * flightSpeed
+        bodyGyro.CFrame = character.HumanoidRootPart.CFrame
         wait(0.1) -- Adjust for smoother movement
     end
 
@@ -62,12 +69,12 @@ local dragging
 local dragInput
 local startPos
 
-button.InputBegan:Connect(function(input)
+dragHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragInput = input
         startPos = button.Position
-        
+
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
