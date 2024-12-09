@@ -2,7 +2,7 @@ local player = game.Players.LocalPlayer
 local mouse = player:GetMouse()
 local character = player.Character or player.CharacterAdded:Wait()
 local flying = false
-local flightSpeed = 30 -- Speed of teleportation while flying
+local flightSpeed = 30 -- Speed of flying
 local bodyGyro, bodyVelocity
 
 -- Create UI
@@ -34,12 +34,12 @@ local function startFlying()
     
     bodyVelocity = Instance.new("BodyVelocity", character.HumanoidRootPart)
     bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
 
     while flying do
-        -- Only change direction based on the character's look direction
-        bodyVelocity.Velocity = character.HumanoidRootPart.CFrame.LookVector * flightSpeed
-        bodyGyro.CFrame = character.HumanoidRootPart.CFrame
+        -- Move forward in the direction the character is looking when the joystick is used
+        if player.PlayerScripts:FindFirstChild("Joystick") then -- Check if the joystick is available
+            bodyVelocity.Velocity = character.HumanoidRootPart.CFrame.LookVector * flightSpeed
+        end
         wait(0.1) -- Adjust for smoother movement
     end
 
@@ -65,7 +65,7 @@ local function toggleFly()
 end
 
 -- Mobile-friendly button dragging functionality
-local dragging
+local dragging = false
 local dragInput
 local startPos
 
