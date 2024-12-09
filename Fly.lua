@@ -1,5 +1,4 @@
 local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
 local character = player.Character or player.CharacterAdded:Wait()
 local flying = false
 local flightSpeed = 30 -- Speed of flying
@@ -8,26 +7,33 @@ local bodyGyro, bodyVelocity
 -- Create UI
 local screenGui = Instance.new("ScreenGui", player.PlayerGui)
 local button = Instance.new("TextButton", screenGui)
-local dragHandle = Instance.new("Frame", button)
+local joystick = Instance.new("Frame", screenGui) -- This will act as the joystick area
+local dragHandle = Instance.new("Frame", joystick)
 
 -- Button properties
-button.Size = UDim2.new(0, 100, 0, 50) -- Button size
+button.Size = UDim2.new(0, 100, 0, 50)
 button.Position = UDim2.new(0.5, -50, 0.5, -25)
 button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
 button.TextSize = 18
 button.Font = Enum.Font.SourceSansBold
-button.Text = "Fly"  -- Initial text
+button.Text = "Fly"
 
--- Drag handle properties
-dragHandle.Size = UDim2.new(1, 0, 0, 10) -- Thin bar at the top
-dragHandle.Position = UDim2.new(0, 0, 0, 0)
-dragHandle.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+-- Joystick properties
+joystick.Size = UDim2.new(0, 200, 0, 200)
+joystick.Position = UDim2.new(0.1, 0, 0.7, 0)
+joystick.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 
--- Function to create flying mechanism
+-- Drag handle properties (this is the actual joystick)
+dragHandle.Size = UDim2.new(0, 100, 0, 100)
+dragHandle.Position = UDim2.new(0.5, -50, 0.5, -50)
+dragHandle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Function to start flying
 local function startFlying()
     flying = true
-    character:WaitForChild("Humanoid").PlatformStand = true -- Disable physics
+    character:WaitForChild("Humanoid").PlatformStand = true
+
     bodyGyro = Instance.new("BodyGyro", character.HumanoidRootPart)
     bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
     bodyGyro.P = 3000
@@ -36,16 +42,29 @@ local function startFlying()
     bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
 
     while flying do
-        -- Move forward in the direction the character is looking when the joystick is used
-        if player.PlayerScripts:FindFirstChild("Joystick") then -- Check if the joystick is available
-            bodyVelocity.Velocity = character.HumanoidRootPart.CFrame.LookVector * flightSpeed
-        end
-        wait(0.1) -- Adjust for smoother movement
+        -- Control the direction based on joystick position
+        local joystickPos = dragHandle.Position
+        local joystickX = (joystickPos.X.Scale * joystick.AbsoluteSize.X) + (joystickPos.X.Offset + (dragHandle.Size.X.Offset/2))
+        local joystickY = (joystickPos.Y.Scale * joystick.AbsoluteSize.Y) + (joystickPos.Y.Offset + (dragHandle.Size.Y.Offset/2))
+
+        local center = Vector2.new(joystick.AbsolutePosition.X + (joystick.AbsoluteSize.X / 2), joystick.AbsolutePosition.Y + (joystick.AbsoluteSize.Y / 2))
+        local direction = Vector2.new(joystickX - center.X, joystickY - center.Y)
+
+        -- Calculate directional velocity
+        local moveDirection = Vector3.new(direction.X, 0, direction.Y).Unit
+
+        -- Set velocity
+        bodyVelocity.Velocity = moveDirection * flightSpeed
+
+        -- Set character to face the moving direction
+        bodyGyro.CFrame = CFrame.new(character.HumanoidRootPart.Position, character.HumanoidRootPart.Position + moveDirection)
+
+        wait(0.1)
     end
 
     bodyGyro:Destroy()
     bodyVelocity:Destroy()
-    character.Humanoid.PlatformStand = false -- Re-enable physics
+    character.Humanoid.PlatformStand = false 
 end
 
 -- Function to stop flying
@@ -53,45 +72,54 @@ local function stopFlying()
     flying = false
 end
 
--- Function to toggle flight state
-local function toggleFly()
+-- Toggle flying when the button is clicked
+button.MouseButton1Click:Connect(function()
     if flying then
         stopFlying()
-        button.Text = "Fly"  -- Change text back to Fly
+        button.Text = "Fly"
     else
-        button.Text = "Unfly"  -- Change text to Unfly
         startFlying()
+        button.Text = "Unfly"
     end
-end
+end)
 
--- Mobile-friendly button dragging functionality
+-- Joystick touch handling
 local dragging = false
-local dragInput
-local startPos
+local startPosition = nil
 
 dragHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
-        dragInput = input
-        startPos = button.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
+        startPosition = input.Position
     end
 end)
 
--- Move button while dragging
-game:GetService("UserInputService").InputChanged:Connect(function(input)
+dragHandle.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - dragInput.Position
-        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        local delta = input.Position - startPosition
+        local newPosition = UDim2.new(0.5, delta.X, 0.5, delta.Y)
+        dragHandle.Position = newPosition
+
+        -- Constrain dragHandle to stay within the joystick area
+        if newPosition.X.Offset < -100 then
+            dragHandle.Position = UDim2.new(0, -100, 0, dragHandle.Position.Y.Offset)
+        elseif newPosition.X.Offset > 100 then
+            dragHandle.Position = UDim2.new(0, 100, 0, dragHandle.Position.Y.Offset)
+        end
+        if newPosition.Y.Offset < -100 then
+            dragHandle.Position = UDim2.new(dragHandle.Position.X.Offset, 0, 0, -100)
+        elseif newPosition.Y.Offset > 100 then
+            dragHandle.Position = UDim2.new(dragHandle.Position.X.Offset, 0, 0, 100)
+        end
     end
 end)
 
-button.MouseButton1Click:Connect(toggleFly)
+dragHandle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        dragHandle.Position = UDim2.new(0.5, -50, 0.5, -50) -- Reset position after release
+    end
+end)
 
 -- Reset button on character respawn
 player.CharacterAdded:Connect(function(newCharacter)
